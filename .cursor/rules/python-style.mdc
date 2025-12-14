@@ -1,0 +1,16 @@
+---
+
+description: Padrões de engenharia Python (estilo, typing, erros, logs)
+globs:
+
+- src/**/*.py
+- scripts/**/*.py
+  alwaysApply: false
+
+---
+
+- Use type hints em funções públicas.
+- Evite funções grandes; extraia helpers.
+- Logging estruturado; não usar print.
+- Erros: use exceções específicas + mensagens acionáveis.
+- I/O sempre em utils/io.py; não espalhar paths hardcoded.

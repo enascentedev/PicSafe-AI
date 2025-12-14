@@ -1,0 +1,24 @@
+---
+
+description: Regras fundacionais do picsafe-ai (sempre aplicar)
+alwaysApply: true
+
+---
+
+# Objetivo do repo
+
+- Este projeto é uma TRIAGEM VISUAL (pré-avaliação) baseada em imagens/vídeo.
+- Não emitir laudo, não declarar conformidade NR-12 automaticamente.
+- Saídas sempre devem incluir: evidências (imagem anotada), confiança, e "DESCONHECIDO" quando faltar evidência.
+
+# Como trabalhar
+
+- Antes de codar, leia: @docs/00_visao-geral.md e @docs/01_escopo-poc.md
+- Para mudanças relevantes, atualize também a doc correspondente em /docs.
+- Prefira alterações pequenas e incrementais, com testes.
+
+# Padrões
+
+- Python 3.11+, tipagem com type hints.
+- ruff/black/mypy (ver @pyproject.toml).
+- Sempre adicionar ou atualizar testes quando alterar regras do checklist ou contratos da API.

@@ -1,0 +1,11 @@
+---
+
+description: Privacidade/LGPD (imagens industriais, retenção, minimização)
+alwaysApply: true
+
+---
+
+- Não assumir que imagens podem ser armazenadas indefinidamente.
+- Prever configuração de retenção e anonimização quando aplicável.
+- Evitar gravar imagens originais em log; registrar apenas IDs/paths.
+- Documentar claramente onde os dados ficam (local, S3, etc.) e por quanto tempo.

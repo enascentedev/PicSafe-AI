@@ -1,0 +1,14 @@
+---
+
+description: Contrato da API (schemas estáveis, versionamento e compatibilidade)
+globs:
+
+- src/picsafe_ai/api/**/*.py
+  alwaysApply: false
+
+---
+
+- Defina schemas Pydantic em schemas.py e reutilize.
+- Não quebre o contrato sem bump de versão (ex.: /v1/analisar).
+- Resposta deve conter: detections[], checklist[], pending_photos[], model_version, thresholds.
+- Testar validação de schema em tests/test_schemas.py.

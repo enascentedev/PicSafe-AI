@@ -1,0 +1,14 @@
+---
+
+description: Qualidade e testes (obrigatórios em regras, schemas e relatórios)
+globs:
+
+- tests/**/*.py
+- src/**/*.py
+  alwaysApply: false
+
+---
+
+- Toda regra nova no checklist precisa de teste.
+- Testes devem cobrir: casos OK, ATENÇÃO, DESCONHECIDO.
+- Não usar recursos externos em teste unitário; use fixtures com JSONs pequenos.

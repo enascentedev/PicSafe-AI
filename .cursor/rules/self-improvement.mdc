@@ -1,0 +1,9 @@
+---
+
+description: Evolução de regras (quando repetir correções, virar regra)
+alwaysApply: false
+
+---
+
+- Se o mesmo ajuste ocorrer 3x (estilo, arquitetura, checklist), proponha atualizar/criar regra .mdc.
+- Ao criar nova regra, inclua: description clara + globs corretos + exemplos de "certo/errado".

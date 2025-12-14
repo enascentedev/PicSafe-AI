@@ -1,0 +1,15 @@
+---
+
+description: Regras para pipeline de visão (detector, pós-processamento, métricas)
+globs:
+
+- src/picsafe_ai/vision/**/*.py
+- scripts/run_inference_folder.py
+  alwaysApply: false
+
+---
+
+- Separar: inferência (detector) vs pós-processamento (NMS, thresholds, merge).
+- Persistir saídas em JSON com schema estável.
+- Métricas mínimas: precision/recall por classe + foco em recall para riscos críticos.
+- Se confiança < limiar: sinalizar "DESCONHECIDO", nunca "OK".

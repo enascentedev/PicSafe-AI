@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  picsafe-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./reports:/app/reports
+      - ./temp:/app/temp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  picsafe-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - picsafe-api
+    restart: unless-stopped
+
+  # Redis para cache (opcional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    profiles:
+      - full
+
+  # PostgreSQL para dados persistentes (opcional)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: picsafe
+      POSTGRES_USER: picsafe
+      POSTGRES_PASSWORD: picsafe123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    profiles:
+      - full
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  default:
+    name: picsafe-network

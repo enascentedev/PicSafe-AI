@@ -1,0 +1,16 @@
+---
+
+description: Regras do motor de triagem NR-12 (checklist conservador e auditável)
+globs:
+
+- src/picsafe_ai/checklist/**/*.py
+- src/picsafe_ai/reporting/**/*.py
+  alwaysApply: false
+
+---
+
+- Checklist deve ser rastreável: item -> evidência (foto + bbox) -> regra aplicada.
+- Regras devem ser determinísticas e testadas (tests/test_rules.py).
+- Estados permitidos: OK | ATENÇÃO | DESCONHECIDO.
+- Sempre gerar "pendências de evidência" (ex.: pedir foto do painel/posto de operação).
+- O texto do relatório deve conter: "Pré-avaliação automatizada. Requer validação por profissional habilitado."
