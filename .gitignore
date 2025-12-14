@@ -84,6 +84,7 @@ datasets/
 # Configurações locais
 .env.local
 config.local.json
+config.env
 
 # Arquivos de desenvolvimento
 *.tmp
