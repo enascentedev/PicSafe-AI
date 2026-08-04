@@ -11,9 +11,6 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Configurações da aplicação carregadas de variáveis de ambiente."""
 
-    # API OpenAI
-    openai_api_key: str = ""
-
     # Configurações da API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
@@ -37,9 +34,16 @@ class Settings(BaseSettings):
 
     class Config:
         """Configuração do Pydantic."""
-        env_file = ".env"
+        # config.env é o arquivo documentado no README e no compose; .env é
+        # aceito como override local. O último da sequência tem precedência.
+        env_file = ("config.env", ".env")
         env_file_encoding = "utf-8"
         case_sensitive = False
+        # Chaves do arquivo que não correspondem a um campo acima são
+        # ignoradas. Sem isso, uma variável de outro serviço no mesmo
+        # config.env (POSTGRES_PASSWORD, por exemplo) derruba a aplicação
+        # no import com extra_forbidden.
+        extra = "ignore"
 
     def create_directories(self) -> None:
         """Cria diretórios necessários se não existirem."""
