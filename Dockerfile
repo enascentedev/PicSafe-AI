@@ -36,7 +36,12 @@ RUN uv sync --no-install-project --no-dev
 
 # Copiar código fonte
 COPY --chown=picsafe:picsafe src/ ./src/
-COPY --chown=picsafe:picsafe config.env ./
+
+# A configuração NÃO é copiada para a imagem. Arquivos de ambiente contêm
+# segredos e não devem ser embutidos em camadas do Docker — passe as variáveis
+# em tempo de execução:
+#   docker run --env-file config.env picsafe-ai
+#   docker compose --env-file config.env up
 
 # Criar diretórios necessários
 RUN mkdir -p uploads reports temp
