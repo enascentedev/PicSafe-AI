@@ -27,7 +27,7 @@ jobs:
       - run: uv sync --frozen
       - run: uv run black --check src scripts tests
       - run: uv run ruff check src scripts tests
-      - run: uv run mypy
+      - run: uv run mypy src
       - run: uv run pytest
         env:
           ENVIRONMENT: test
@@ -55,4 +55,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t picsafe-api:test .
-      - run: docker build -t picsafe-frontend:test frontend
+      # frontend/Dockerfile ainda não existe (ver docker-compose.yml) — build
+      # do container do frontend fica para quando ele for criado.
