@@ -24,7 +24,7 @@ class TestSchemas:
             class_name=DetectionClass.EMERGENCY_STOP,
             confidence=0.85,
             bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=0.3, y_max=0.3),
-            image_path="test.jpg"
+            image_path="test.jpg",
         )
 
         assert detection.class_name == DetectionClass.EMERGENCY_STOP
@@ -38,7 +38,7 @@ class TestSchemas:
                 class_name=DetectionClass.EMERGENCY_STOP,
                 confidence=1.5,  # Inválido: deve ser <= 1.0
                 bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=0.3, y_max=0.3),
-                image_path="test.jpg"
+                image_path="test.jpg",
             )
 
     def test_detection_schema_invalid_bbox(self):
@@ -47,8 +47,10 @@ class TestSchemas:
             Detection(
                 class_name=DetectionClass.EMERGENCY_STOP,
                 confidence=0.85,
-                bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=1.5, y_max=0.3),  # x_max > 1.0
-                image_path="test.jpg"
+                bbox=BoundingBox(
+                    x_min=0.1, y_min=0.1, x_max=1.5, y_max=0.3
+                ),  # x_max > 1.0
+                image_path="test.jpg",
             )
 
     def test_checklist_item_schema(self):
@@ -58,7 +60,7 @@ class TestSchemas:
             description="Teste de regra",
             status=ChecklistStatus.ATENCAO,
             evidence="Evidência encontrada",
-            notes="Notas adicionais"
+            notes="Notas adicionais",
         )
 
         assert item.rule_id == "R-001"
@@ -68,8 +70,7 @@ class TestSchemas:
     def test_pending_photo_schema(self):
         """Testa schema de foto pendente."""
         photo = PendingPhoto(
-            description="Foto do posto de operação",
-            reason="Botão não localizado"
+            description="Foto do posto de operação", reason="Botão não localizado"
         )
 
         assert "posto" in photo.description.lower()
@@ -77,10 +78,7 @@ class TestSchemas:
 
     def test_analysis_request_schema(self):
         """Testa schema de requisição de análise."""
-        request = AnalysisRequest(
-            machine_id="MAQ-001",
-            notes="Máquina de teste"
-        )
+        request = AnalysisRequest(machine_id="MAQ-001", notes="Máquina de teste")
 
         assert request.machine_id == "MAQ-001"
         assert request.notes == "Máquina de teste"
@@ -96,7 +94,7 @@ class TestSchemas:
             model_version="v1.0.0",
             confidence_threshold=0.5,
             analysis_timestamp="2024-01-01T10:00:00Z",
-            processing_time_seconds=2.5
+            processing_time_seconds=2.5,
         )
 
         assert response.machine_id == "MAQ-001"
@@ -119,7 +117,7 @@ class TestSchemas:
                 class_name=cls,
                 confidence=0.8,
                 bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=0.3, y_max=0.3),
-                image_path="test.jpg"
+                image_path="test.jpg",
             )
             assert detection.class_name == cls
 
@@ -132,9 +130,5 @@ class TestSchemas:
         ]
 
         for status in statuses:
-            item = ChecklistItem(
-                rule_id="R-001",
-                description="Teste",
-                status=status
-            )
+            item = ChecklistItem(rule_id="R-001", description="Teste", status=status)
             assert item.status == status

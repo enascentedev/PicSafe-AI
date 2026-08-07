@@ -3,7 +3,6 @@
 import hashlib
 import logging
 from pathlib import Path
-from typing import Optional
 
 from fastapi import UploadFile
 
@@ -26,13 +25,12 @@ def save_uploaded_file(upload_file: UploadFile, destination_dir: Path) -> str:
 
     # Gerar nome único baseado no conteúdo
     content = upload_file.file.read()
-    file_hash = hashlib.md5(content).hexdigest()[:8]
+    file_hash = hashlib.md5(content, usedforsecurity=False).hexdigest()[:8]
 
     # Resetar ponteiro do arquivo
     upload_file.file.seek(0)
 
     # Criar nome do arquivo
-    file_extension = Path(upload_file.filename).suffix.lower()
     filename = f"{file_hash}_{upload_file.filename}"
     file_path = destination_dir / filename
 
@@ -80,7 +78,7 @@ def cleanup_old_files(directory: Path, max_age_days: int = 7) -> int:
     return removed_count
 
 
-def get_file_info(file_path: str) -> Optional[dict]:
+def get_file_info(file_path: str) -> dict | None:
     """
     Obtém informações básicas sobre um arquivo.
 

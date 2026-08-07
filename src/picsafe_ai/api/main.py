@@ -1,21 +1,22 @@
 """API FastAPI principal do PicSafe AI."""
 
+import contextlib
 import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-from ..checklist import RulesEngine
-from ..config import settings
-from ..reporting import HTMLReportGenerator, ImageAnnotator
-from ..utils import io as io_utils
-from ..vision import PostProcessor, VisionDetector
-from .schemas import AnalysisRequest, AnalysisResponse
+from picsafe_ai.checklist import RulesEngine
+from picsafe_ai.config import settings
+from picsafe_ai.reporting import HTMLReportGenerator, ImageAnnotator
+from picsafe_ai.utils import io as io_utils
+from picsafe_ai.vision import PostProcessor, VisionDetector
+
+from .schemas import AnalysisResponse
 
 # Configurar logging
 logging.basicConfig(
@@ -49,7 +50,7 @@ app.add_middleware(
 
 
 @app.get("/", response_class=HTMLResponse)
-async def root():
+async def root() -> str:
     """Página inicial com informações sobre a API."""
     return """
     <html>
@@ -93,10 +94,10 @@ async def root():
 
 @app.post("/v1/analisar", response_model=AnalysisResponse)
 async def analisar_imagens(
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     machine_id: str = Form(None),
     notes: str = Form(None),
-):
+) -> AnalysisResponse:
     """
     Analisa imagens de máquina para triagem visual NR-12.
 
@@ -128,8 +129,10 @@ async def analisar_imagens(
         # Salvar imagens temporariamente
         saved_paths = []
         for file in files:
-            if not file.filename.lower().endswith(
-                (".png", ".jpg", ".jpeg", ".bmp", ".tiff")
+            if (
+                not (file.filename or "")
+                .lower()
+                .endswith((".png", ".jpg", ".jpeg", ".bmp", ".tiff"))
             ):
                 raise HTTPException(
                     status_code=400, detail=f"Formato não suportado: {file.filename}"
@@ -149,7 +152,7 @@ async def analisar_imagens(
                 all_detections.extend(detections)
 
             except Exception as e:
-                logger.error(f"Erro ao processar {path}: {e}")
+                logger.exception(f"Erro ao processar {path}: {e}")
                 continue
 
         # Pós-processamento das detecções
@@ -196,22 +199,20 @@ async def analisar_imagens(
 
         # Limpar arquivos temporários (manter apenas relatório)
         for path in saved_paths:
-            try:
+            with contextlib.suppress(Exception):
                 Path(path).unlink()
-            except Exception:
-                pass
 
         return response
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro interno durante análise: {e}")
+        logger.exception(f"Erro interno durante análise: {e}")
         raise HTTPException(status_code=500, detail="Erro interno do servidor")
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Endpoint de verificação de saúde da API."""
     return {
         "status": "healthy",

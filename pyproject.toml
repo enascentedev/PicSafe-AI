@@ -42,7 +42,38 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "FURB", "LOG", "RUF"]
-ignore = ["S101", "S104", "COM812", "ISC001"]
+ignore = [
+    "S101",    # assert é esperado em testes
+    "S104",    # bind em 0.0.0.0 é intencional (container)
+    "COM812",  # conflita com o formatador
+    "ISC001",  # conflita com o formatador
+    "B008",    # padrão do FastAPI (Depends/File nos defaults)
+    "G004",    # f-string em log é o padrão adotado no projeto
+    "E501",    # comprimento de linha já é controlado pelo black
+    "TRY003",  # mensagens de exceção descritivas são preferidas aqui
+    "TRY300",
+    "TRY301",
+    "TRY400",
+    "TRY401",
+    "EM101",
+    "EM102",
+    "PTH123",  # open() tradicional é aceitável no projeto
+    "PLR2004", # valores mágicos em testes/comparações simples
+    "SLF001",
+    "PERF203",
+    "BLE001",  # captura ampla intencional nas bordas da API
+    "RUF012",
+    "RUF022",  # não reordenar __all__ à força, deixa na ordem lógica escolhida
+    "PLC0415",
+    "ARG001",
+    "ARG002",
+    "B904",
+    "DTZ005",  # timestamps locais sem tz são suficientes para esta PoC
+]
+
+[tool.ruff.lint.per-file-ignores]
+# scripts/ são CLIs: print() é a saída do usuário, não debug esquecido.
+"scripts/*" = ["T201"]
 
 [tool.black]
 line-length = 88

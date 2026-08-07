@@ -1,10 +1,9 @@
 """Pós-processamento das detecções de visão computacional."""
 
 import logging
-from typing import List
 
-from ..api.schemas import Detection
-from ..config import settings
+from picsafe_ai.api.schemas import Detection, DetectionClass
+from picsafe_ai.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ class PostProcessor:
         self.nms_threshold = settings.nms_threshold
         self.confidence_threshold = settings.confidence_threshold
 
-    def process_detections(self, detections: List[Detection]) -> List[Detection]:
+    def process_detections(self, detections: list[Detection]) -> list[Detection]:
         """
         Aplica pós-processamento às detecções.
 
@@ -39,10 +38,12 @@ class PostProcessor:
         # Mesclar detecções similares
         detections = self._merge_similar_detections(detections)
 
-        logger.info(f"Pós-processamento aplicado: {len(detections)} detecções restantes")
+        logger.info(
+            f"Pós-processamento aplicado: {len(detections)} detecções restantes"
+        )
         return detections
 
-    def _apply_nms(self, detections: List[Detection]) -> List[Detection]:
+    def _apply_nms(self, detections: list[Detection]) -> list[Detection]:
         """
         Aplica Non-Maximum Suppression para remover detecções sobrepostas.
 
@@ -56,7 +57,7 @@ class PostProcessor:
             return detections
 
         # Agrupar por classe
-        detections_by_class = {}
+        detections_by_class: dict[DetectionClass, list[Detection]] = {}
         for detection in detections:
             class_name = detection.class_name
             if class_name not in detections_by_class:
@@ -69,7 +70,7 @@ class PostProcessor:
             # Ordenar por confiança (decrescente)
             class_detections.sort(key=lambda x: x.confidence, reverse=True)
 
-            kept_detections = []
+            kept_detections: list[Detection] = []
 
             for detection in class_detections:
                 should_keep = True
@@ -87,7 +88,7 @@ class PostProcessor:
 
         return filtered_detections
 
-    def _filter_by_confidence(self, detections: List[Detection]) -> List[Detection]:
+    def _filter_by_confidence(self, detections: list[Detection]) -> list[Detection]:
         """
         Filtra detecções por threshold de confiança.
 
@@ -97,12 +98,9 @@ class PostProcessor:
         Returns:
             Lista filtrada por confiança.
         """
-        return [
-            d for d in detections
-            if d.confidence >= self.confidence_threshold
-        ]
+        return [d for d in detections if d.confidence >= self.confidence_threshold]
 
-    def _merge_similar_detections(self, detections: List[Detection]) -> List[Detection]:
+    def _merge_similar_detections(self, detections: list[Detection]) -> list[Detection]:
         """
         Mescla detecções similares da mesma classe.
 
