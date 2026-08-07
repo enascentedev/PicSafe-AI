@@ -1,57 +1,28 @@
-# Dockerfile para PicSafe AI
-FROM python:3.10-slim
+FROM python:3.12-slim-bookworm
 
-# Configurações de ambiente
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV UV_CACHE_DIR=/tmp/uv-cache
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/app/.venv/bin:$PATH"
 
-# Instalar sistema de dependências
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    libgtk2.0-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv==0.8.4 \
+    && groupadd --system picsafe \
+    && useradd --system --gid picsafe --home-dir /app picsafe
 
-# Instalar uv
-RUN pip install uv
-
-# Criar usuário não-root
-RUN useradd --create-home --shell /bin/bash picsafe
-USER picsafe
-
-# Diretório de trabalho
 WORKDIR /app
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Copiar arquivos de dependências
-COPY --chown=picsafe:picsafe pyproject.toml ./
+COPY src ./src
+RUN uv sync --frozen --no-dev \
+    && mkdir -p /app/reports /app/temp \
+    && chown -R picsafe:picsafe /app/reports /app/temp
 
-# Instalar dependências Python
-RUN uv sync --no-install-project --no-dev
-
-# Copiar código fonte
-COPY --chown=picsafe:picsafe src/ ./src/
-
-# A configuração NÃO é copiada para a imagem. Arquivos de ambiente contêm
-# segredos e não devem ser embutidos em camadas do Docker — passe as variáveis
-# em tempo de execução:
-#   docker run --env-file config.env picsafe-ai
-#   docker compose --env-file config.env up
-
-# Criar diretórios necessários
-RUN mkdir -p uploads reports temp
-
-# Expor porta
+USER picsafe
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
 
-# Comando de execução
-CMD ["uv", "run", "uvicorn", "src.picsafe_ai.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "picsafe_ai.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

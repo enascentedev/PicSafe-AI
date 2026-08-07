@@ -1,12 +1,13 @@
-"""Schemas Pydantic para a API do PicSafe AI."""
+"""Schemas estáveis da API v1 do PicSafe AI."""
 
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
-class DetectionClass(str, Enum):
-    """Classes de detecção suportadas."""
+class DetectionClass(StrEnum):
+    """Classes visuais reconhecidas pelo contrato da PoC."""
 
     EMERGENCY_STOP = "emergency_stop"
     GUARD = "guard"
@@ -15,87 +16,140 @@ class DetectionClass(str, Enum):
     SAFETY_SIGN = "safety_sign"
 
 
-class ChecklistStatus(str, Enum):
-    """Estados possíveis do checklist."""
+class ChecklistStatus(StrEnum):
+    """Estados conservadores do checklist."""
 
     OK = "OK"
     ATENCAO = "ATENÇÃO"
     DESCONHECIDO = "DESCONHECIDO"
 
 
-class BoundingBox(BaseModel):
-    """Bounding box de uma detecção."""
+class DetectorMode(StrEnum):
+    """Origem real ou simulada das detecções."""
 
-    x_min: float = Field(
-        ..., ge=0.0, le=1.0, description="Coordenada X mínima normalizada (0-1)"
-    )
-    y_min: float = Field(
-        ..., ge=0.0, le=1.0, description="Coordenada Y mínima normalizada (0-1)"
-    )
-    x_max: float = Field(
-        ..., ge=0.0, le=1.0, description="Coordenada X máxima normalizada (0-1)"
-    )
-    y_max: float = Field(
-        ..., ge=0.0, le=1.0, description="Coordenada Y máxima normalizada (0-1)"
-    )
+    REAL = "real"
+    SIMULATED = "simulated"
+
+
+class AnalysisStatus(StrEnum):
+    """Resultado global do processamento."""
+
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+
+
+class BoundingBox(BaseModel):
+    """Bounding box normalizada no intervalo de zero a um."""
+
+    x_min: float = Field(ge=0.0, le=1.0)
+    y_min: float = Field(ge=0.0, le=1.0)
+    x_max: float = Field(ge=0.0, le=1.0)
+    y_max: float = Field(ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_coordinates(self) -> "BoundingBox":
+        """Garante área positiva."""
+        if self.x_min >= self.x_max or self.y_min >= self.y_max:
+            message = "Bounding box precisa ter área positiva"
+            raise ValueError(message)
+        return self
+
+
+class DetectorMetadata(BaseModel):
+    """Metadados públicos e não sensíveis do detector."""
+
+    name: str
+    version: str
+    mode: DetectorMode
+    configuration: dict[str, str] = Field(default_factory=dict)
 
 
 class Detection(BaseModel):
-    """Detecção de um objeto em uma imagem."""
+    """Detecção ligada a uma imagem opaca."""
 
-    class_name: DetectionClass = Field(..., description="Classe detectada")
-    confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confiança da detecção (0-1)"
-    )
-    bbox: BoundingBox = Field(..., description="Bounding box da detecção")
-    image_path: str = Field(..., description="Caminho relativo da imagem")
+    class_name: DetectionClass
+    confidence: float = Field(ge=0.0, le=1.0)
+    bbox: BoundingBox
+    image_id: str
+    image_path: str = Field(description="Alias compatível contendo apenas image_id")
+
+
+class EvidenceReference(BaseModel):
+    """Rastreabilidade estruturada de uma evidência."""
+
+    image_id: str
+    bbox: BoundingBox
+    detector_name: str
+    detector_version: str
+    detector_mode: DetectorMode
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
 class ChecklistItem(BaseModel):
-    """Item do checklist de triagem."""
+    """Item auditável do checklist de pré-avaliação."""
 
-    rule_id: str = Field(..., description="ID da regra aplicada (ex: R-001)")
-    description: str = Field(..., description="Descrição do item do checklist")
-    status: ChecklistStatus = Field(..., description="Estado do item")
-    evidence: str | None = Field(
-        None, description="Evidência associada (caminho da imagem + bbox)"
-    )
-    notes: str | None = Field(None, description="Notas adicionais")
+    rule_id: str
+    description: str
+    status: ChecklistStatus
+    evidence: str | None = None
+    evidence_refs: list[EvidenceReference] = Field(default_factory=list)
+    notes: str | None = None
 
 
 class PendingPhoto(BaseModel):
-    """Foto pendente solicitada."""
+    """Evidência adicional solicitada ao operador."""
 
-    description: str = Field(..., description="Descrição do que deve ser fotografado")
-    reason: str = Field(..., description="Razão pela qual a foto é necessária")
+    description: str
+    reason: str
+    image_id: str | None = None
+
+
+class ImageProcessingError(BaseModel):
+    """Falha segura associada a uma imagem opaca."""
+
+    image_id: str
+    code: str
+    message: str
 
 
 class AnalysisRequest(BaseModel):
-    """Requisição de análise de imagens."""
+    """Metadados opcionais enviados junto às imagens."""
 
-    machine_id: str | None = Field(None, description="ID opcional da máquina analisada")
-    notes: str | None = Field(None, description="Notas adicionais sobre a análise")
+    machine_id: str | None = Field(default=None, max_length=80)
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class AnalysisResponse(BaseModel):
-    """Resposta da análise completa."""
+    """Resposta aditiva da API v1."""
 
-    machine_id: str | None = Field(None, description="ID da máquina analisada")
-    detections: list[Detection] = Field(
-        default_factory=list, description="Lista de detecções encontradas"
-    )
-    checklist: list[ChecklistItem] = Field(
-        default_factory=list, description="Itens do checklist avaliados"
-    )
-    pending_photos: list[PendingPhoto] = Field(
-        default_factory=list, description="Fotos pendentes solicitadas"
-    )
-    report_html: str = Field(..., description="Relatório em formato HTML")
-    model_version: str = Field(..., description="Versão do modelo utilizado")
-    confidence_threshold: float = Field(
-        ..., description="Threshold de confiança utilizado"
-    )
-    analysis_timestamp: str = Field(..., description="Timestamp da análise (ISO 8601)")
-    processing_time_seconds: float = Field(
-        ..., description="Tempo de processamento em segundos"
-    )
+    analysis_id: str
+    analysis_status: AnalysisStatus
+    machine_id: str | None = None
+    detections: list[Detection] = Field(default_factory=list)
+    checklist: list[ChecklistItem] = Field(default_factory=list)
+    pending_photos: list[PendingPhoto] = Field(default_factory=list)
+    image_errors: list[ImageProcessingError] = Field(default_factory=list)
+    detector: DetectorMetadata
+    report_html: str
+    model_version: str
+    confidence_threshold: float
+    thresholds: dict[str, float]
+    analysis_timestamp: str
+    processing_time_seconds: float
+
+
+class HealthResponse(BaseModel):
+    """Estado operacional sem afirmar capacidade de visão real."""
+
+    status: str
+    version: str
+    detector: DetectorMetadata
+    timestamp: str
+
+
+class ApiError(BaseModel):
+    """Erro público padronizado."""
+
+    code: str
+    message: str
+    context: dict[str, Any] = Field(default_factory=dict)

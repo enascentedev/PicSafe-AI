@@ -91,9 +91,6 @@ config.env
 *.bak
 debug/
 
-# Planos e notas internas de tarefa — docs/ é versionado, docs/tasks/ não
-docs/tasks/
-
 # Node.js
 node_modules/
 npm-debug.log*

@@ -1,6 +1,6 @@
-"""Módulo de geração de relatórios."""
+"""Relatórios e evidências anotadas."""
 
-from .annotate import ImageAnnotator
-from .report_html import HTMLReportGenerator
+from picsafe_ai.reporting.annotate import ImageAnnotationError, ImageAnnotator
+from picsafe_ai.reporting.report_html import HTMLReportGenerator
 
-__all__ = ["ImageAnnotator", "HTMLReportGenerator"]
+__all__ = ["HTMLReportGenerator", "ImageAnnotationError", "ImageAnnotator"]

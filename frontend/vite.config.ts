@@ -1,28 +1,26 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-// https://vitejs.dev/config/
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+const projectDirectory = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: { "@": path.resolve(projectDirectory, "src") },
   },
   server: {
     port: 3000,
-    host: "0.0.0.0", // Escuta em todas as interfaces (IPv4 e IPv6)
+    host: "127.0.0.1",
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
+        rewrite: (requestPath) => requestPath.replace(/^\/api/, ""),
       },
     },
   },
-  build: {
-    outDir: "dist",
-    sourcemap: true,
-  },
+  build: { outDir: "dist", sourcemap: false },
 });

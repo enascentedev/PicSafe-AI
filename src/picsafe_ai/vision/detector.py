@@ -1,115 +1,127 @@
-"""Detector de visão computacional para detecção de objetos de segurança."""
+"""Contrato de detector e implementação simulada explícita."""
 
-import io
-import logging
+from io import BytesIO
+from typing import Protocol, runtime_checkable
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
-from picsafe_ai.api.schemas import BoundingBox, Detection, DetectionClass
-from picsafe_ai.config import settings
+from picsafe_ai.api.schemas import (
+    BoundingBox,
+    Detection,
+    DetectionClass,
+    DetectorMetadata,
+    DetectorMode,
+)
+from picsafe_ai.config import DetectorBackend, Environment, Settings, StubScenario
 
-logger = logging.getLogger(__name__)
+
+class DetectorError(RuntimeError):
+    """Falha acionável durante uma inferência."""
 
 
-class VisionDetector:
-    """Detector de objetos usando visão computacional (atualmente stub)."""
+class DetectorConfigurationError(RuntimeError):
+    """Configuração incapaz de fornecer um detector seguro."""
 
-    def __init__(self) -> None:
-        """Inicializa o detector."""
-        self.model_version = settings.model_version
-        self.confidence_threshold = settings.confidence_threshold
-        self.nms_threshold = settings.nms_threshold
-        logger.info(f"Detector inicializado - Versão: {self.model_version}")
 
-    def predict(self, image_bytes: bytes, image_path: str = "") -> list[Detection]:
-        """
-        Detecta objetos de segurança na imagem.
+@runtime_checkable
+class VisionDetector(Protocol):
+    """Interface substituível para detectores visuais."""
 
-        Args:
-            image_bytes: Bytes da imagem.
-            image_path: Caminho da imagem para referência.
+    @property
+    def metadata(self) -> DetectorMetadata:
+        """Descreve o detector sem expor configuração sensível."""
+        ...
 
-        Returns:
-            Lista de detecções encontradas.
-        """
-        # TODO: Implementar detector real (YOLO, etc.)
-        # Por enquanto, retorna detecções de exemplo para desenvolvimento
+    def predict(self, image_bytes: bytes, image_id: str) -> list[Detection]:
+        """Retorna detecções ou levanta ``DetectorError``."""
+        ...
 
-        logger.warning("Usando detector stub - implemente detector real para produção")
 
-        # Simular detecções baseadas em análise básica da imagem
+class StubVisionDetector:
+    """Detector determinístico e explicitamente simulado para dev/test."""
+
+    def __init__(
+        self,
+        *,
+        version: str,
+        confidence_threshold: float,
+        scenario: StubScenario,
+    ) -> None:
+        self._confidence_threshold = confidence_threshold
+        self._scenario = scenario
+        self._metadata = DetectorMetadata(
+            name="stub-vision-detector",
+            version=version,
+            mode=DetectorMode.SIMULATED,
+            configuration={
+                "scenario": scenario.value,
+                "confidence_threshold": str(confidence_threshold),
+            },
+        )
+
+    @property
+    def metadata(self) -> DetectorMetadata:
+        """Metadados que impedem confundir o stub com modelo real."""
+        return self._metadata
+
+    def predict(self, image_bytes: bytes, image_id: str) -> list[Detection]:
+        """Valida a imagem e produz um cenário simulado controlado."""
         try:
-            image = Image.open(io.BytesIO(image_bytes))
-            detections = self._stub_detection(image, image_path)
-            logger.info(f"Detectadas {len(detections)} objetos em {image_path}")
-            return detections
-        except Exception as e:
-            logger.exception(f"Erro no processamento da imagem {image_path}: {e}")
+            with Image.open(BytesIO(image_bytes)) as image:
+                image.verify()
+        except (OSError, UnidentifiedImageError) as exc:
+            message = "O detector recebeu conteúdo que não é uma imagem válida"
+            raise DetectorError(message) from exc
+
+        if self._scenario is StubScenario.EMPTY:
             return []
+        return [
+            self._detection(
+                DetectionClass.EMERGENCY_STOP,
+                confidence=0.85,
+                bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=0.3, y_max=0.3),
+                image_id=image_id,
+            ),
+            self._detection(
+                DetectionClass.GUARD,
+                confidence=0.78,
+                bbox=BoundingBox(x_min=0.35, y_min=0.2, x_max=0.8, y_max=0.7),
+                image_id=image_id,
+            ),
+        ]
 
-    def _stub_detection(self, image: Image.Image, image_path: str) -> list[Detection]:
-        """
-        Detecção stub para desenvolvimento - retorna detecções simuladas.
+    def _detection(
+        self,
+        class_name: DetectionClass,
+        *,
+        confidence: float,
+        bbox: BoundingBox,
+        image_id: str,
+    ) -> Detection:
+        confidence = max(confidence, self._confidence_threshold)
+        return Detection(
+            class_name=class_name,
+            confidence=confidence,
+            bbox=bbox,
+            image_id=image_id,
+            image_path=image_id,
+        )
 
-        Args:
-            image: Imagem PIL.
-            image_path: Caminho da imagem.
 
-        Returns:
-            Lista de detecções simuladas.
-        """
-        detections = []
-
-        # Simular detecções baseadas no nome do arquivo (para testes consistentes)
-        if "emergency" in image_path.lower() or "painel" in image_path.lower():
-            detections.append(
-                Detection(
-                    class_name=DetectionClass.EMERGENCY_STOP,
-                    confidence=0.85,
-                    bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=0.3, y_max=0.3),
-                    image_path=image_path,
-                )
-            )
-
-        if "guard" in image_path.lower() or "protecao" in image_path.lower():
-            detections.append(
-                Detection(
-                    class_name=DetectionClass.GUARD,
-                    confidence=0.78,
-                    bbox=BoundingBox(x_min=0.4, y_min=0.2, x_max=0.8, y_max=0.6),
-                    image_path=image_path,
-                )
-            )
-
-        if "moving" in image_path.lower() or "parte" in image_path.lower():
-            detections.append(
-                Detection(
-                    class_name=DetectionClass.EXPOSED_MOVING_PART,
-                    confidence=0.92,
-                    bbox=BoundingBox(x_min=0.5, y_min=0.4, x_max=0.7, y_max=0.8),
-                    image_path=image_path,
-                )
-            )
-
-        if "danger" in image_path.lower() or "abertura" in image_path.lower():
-            detections.append(
-                Detection(
-                    class_name=DetectionClass.DANGER_ZONE_OPENING,
-                    confidence=0.65,
-                    bbox=BoundingBox(x_min=0.2, y_min=0.3, x_max=0.4, y_max=0.5),
-                    image_path=image_path,
-                )
-            )
-
-        if "sign" in image_path.lower() or "sinal" in image_path.lower():
-            detections.append(
-                Detection(
-                    class_name=DetectionClass.SAFETY_SIGN,
-                    confidence=0.71,
-                    bbox=BoundingBox(x_min=0.7, y_min=0.1, x_max=0.9, y_max=0.25),
-                    image_path=image_path,
-                )
-            )
-
-        # Aplicar threshold de confiança
-        return [d for d in detections if d.confidence >= self.confidence_threshold]
+def build_detector(app_settings: Settings) -> VisionDetector:
+    """Constrói somente um detector permitido no ambiente atual."""
+    backend = app_settings.detector_backend
+    if backend is DetectorBackend.DISABLED:
+        message = "Defina DETECTOR_BACKEND explicitamente antes de iniciar a API"
+        raise DetectorConfigurationError(message)
+    if backend is DetectorBackend.REAL:
+        message = "Nenhum detector real foi integrado nesta PoC"
+        raise DetectorConfigurationError(message)
+    if app_settings.environment not in {Environment.DEVELOPMENT, Environment.TEST}:
+        message = "O detector stub só pode ser usado em development ou test"
+        raise DetectorConfigurationError(message)
+    return StubVisionDetector(
+        version=app_settings.model_version,
+        confidence_threshold=app_settings.confidence_threshold,
+        scenario=app_settings.stub_scenario,
+    )
