@@ -1,84 +1,37 @@
 services:
   picsafe-api:
     build: .
+    environment:
+      ENVIRONMENT: development
+      DETECTOR_BACKEND: stub
+      STUB_SCENARIO: empty
+      CORS_ORIGINS: '["http://localhost:3000"]'
     ports:
       - "8000:8000"
-    environment:
-      - API_HOST=0.0.0.0
-      - API_PORT=8000
-      - LOG_LEVEL=INFO
-    # Opcional: copie config.env.example para config.env para sobrescrever os
-    # padrões. O arquivo é lido em tempo de execução e não entra na imagem;
-    # `required: false` mantém o `up` funcionando em um clone limpo.
-    env_file:
-      - path: config.env
-        required: false
     volumes:
-      - ./uploads:/app/uploads
-      - ./reports:/app/reports
-      - ./temp:/app/temp
+      - reports:/app/reports
+    tmpfs:
+      - /app/temp:size=128m,mode=0700,uid=999,gid=999
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
-  # Front-end — desabilitado por padrão: ainda NÃO existe frontend/Dockerfile
-  # neste repositório, e sem ele o build deste serviço falha. Para desenvolver,
-  # rode o Vite localmente: cd frontend && npm install && npm run dev
   picsafe-frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    build: ./frontend
     ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=http://localhost:8000
+      - "3000:8080"
     depends_on:
-      - picsafe-api
+      picsafe-api:
+        condition: service_healthy
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
     restart: unless-stopped
-    profiles:
-      - frontend
-
-  # Redis para cache (opcional)
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    profiles:
-      - full
-
-  # PostgreSQL para dados persistentes (opcional)
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: picsafe
-      POSTGRES_USER: picsafe
-      # Sem senha padrão: nenhuma credencial fica registrada neste arquivo.
-      # Defina POSTGRES_PASSWORD no shell ou em um .env na raiz do projeto — a
-      # interpolação do Compose não lê o env_file dos serviços. Sem valor, a
-      # imagem oficial do Postgres recusa iniciar com mensagem própria; não se
-      # usa ${VAR:?} aqui porque a interpolação roda antes da filtragem por
-      # profile e derrubaria também o `docker compose up` só da API.
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    profiles:
-      - full
 
 volumes:
-  redis_data:
-  postgres_data:
-
-networks:
-  default:
-    name: picsafe-network
+  reports:

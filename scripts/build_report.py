@@ -1,120 +1,31 @@
-#!/usr/bin/env python3
-"""
-Script para gerar relatório HTML a partir de resultados JSON.
-
-Uso:
-    python scripts/build_report.py results.json --output report.html
-"""
+"""Gera um relatório HTML a partir de uma resposta JSON validada."""
 
 import argparse
-import json
-import logging
-import sys
 from pathlib import Path
-
-# Adicionar src ao path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from picsafe_ai.api.schemas import AnalysisResponse
 from picsafe_ai.reporting import HTMLReportGenerator
-from picsafe_ai.utils import setup_logging
-
-logger = logging.getLogger(__name__)
+from picsafe_ai.utils.io import write_text
 
 
-def build_report_from_json(json_file: str, output_file: str) -> None:
-    """
-    Gera relatório HTML a partir de arquivo JSON.
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("input", type=Path, help="Resposta JSON da API")
+    parser.add_argument("output", type=Path, help="Destino HTML")
+    return parser.parse_args()
 
-    Args:
-        json_file: Arquivo JSON com resultados.
-        output_file: Arquivo HTML de saída.
-    """
-    json_path = Path(json_file)
-    if not json_path.exists():
-        msg = f"Arquivo JSON não encontrado: {json_path}"
-        raise FileNotFoundError(msg)
 
-    # Carregar dados JSON
-    with open(json_path, encoding="utf-8") as f:
-        data = json.load(f)
-
-    logger.info(f"Dados carregados de: {json_path}")
-
-    # Verificar se é resultado de lote ou análise única
-    if "batches" in data:
-        # Resultado de lote - combinar em uma análise
-        logger.info("Processando resultado de lote")
-
-        combined_detections = []
-        combined_checklist = []
-        combined_pending = []
-
-        for batch in data["batches"]:
-            response = AnalysisResponse(**batch)
-            combined_detections.extend(response.detections)
-            combined_checklist.extend(response.checklist)
-            combined_pending.extend(response.pending_photos)
-
-        # Usar dados do primeiro batch como base
-        if data["batches"]:
-            base_response = AnalysisResponse(**data["batches"][0])
-            base_response.detections = combined_detections
-            base_response.checklist = combined_checklist
-            base_response.pending_photos = combined_pending
-            base_response.machine_id = f"combined_{len(data['batches'])}_batches"
-        else:
-            msg = "Nenhum batch encontrado no arquivo JSON"
-            raise ValueError(msg)
-
-    else:
-        # Análise única
-        logger.info("Processando análise única")
-        base_response = AnalysisResponse(**data)
-
-    # Regenerar HTML
-    base_response.report_html = HTMLReportGenerator.generate_report(base_response)
-
-    # Salvar relatório
-    output_path = Path(output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(base_response.report_html)
-
-    logger.info(f"Relatório HTML salvo em: {output_path}")
-    logger.info(
-        f"Resumo: {len(base_response.detections)} detecções, {len(base_response.checklist)} itens no checklist"
+def main() -> int:
+    arguments = parse_arguments()
+    response = AnalysisResponse.model_validate_json(
+        arguments.input.read_text(encoding="utf-8")
     )
-
-
-def main():
-    """Função principal."""
-    parser = argparse.ArgumentParser(description="Gerar relatório HTML")
-    parser.add_argument("json_file", help="Arquivo JSON com resultados")
-    parser.add_argument(
-        "--output",
-        "-o",
-        default="report.html",
-        help="Arquivo HTML de saída (padrão: report.html)",
+    write_text(
+        arguments.output,
+        HTMLReportGenerator.generate_report(response),
     )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Log detalhado")
-
-    args = parser.parse_args()
-
-    # Configurar logging
-    log_level = "DEBUG" if args.verbose else "INFO"
-    setup_logging(log_level)
-
-    try:
-        build_report_from_json(args.json_file, args.output)
-        print("✅ Relatório gerado com sucesso!")
-        return 0
-
-    except Exception as e:
-        logger.exception(f"Erro ao gerar relatório: {e}")
-        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

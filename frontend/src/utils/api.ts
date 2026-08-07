@@ -1,75 +1,55 @@
-import axios from "axios";
 import type { AnalysisResponse, HealthResponse } from "../types/api";
 
-// Configuração da API
-// Em desenvolvimento, usa o proxy do Vite (/api)
-// Em produção, usa a variável de ambiente ou padrão
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? "/api" : "http://localhost:8000");
+interface ApiErrorBody {
+  message?: unknown;
+  detail?: unknown;
+}
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000, // 30 segundos
-});
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
-// Interceptor para tratamento de erros
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 400) {
-      throw new Error(error.response.data.detail || "Dados inválidos");
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new Error("A análise excedeu o tempo limite.", { cause: error });
     }
-    if (error.response?.status === 500) {
-      throw new Error("Erro interno do servidor. Tente novamente.");
-    }
-    if (error.code === "ECONNABORTED") {
-      throw new Error("Tempo limite excedido. Verifique sua conexão.");
-    }
-    throw new Error(error.message || "Erro desconhecido");
+    throw new Error("Não foi possível acessar a API.", { cause: error });
   }
-);
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    const message =
+      typeof body.message === "string"
+        ? body.message
+        : typeof body.detail === "string"
+          ? body.detail
+          : "Não foi possível concluir a análise.";
+    throw new Error(message);
+  }
+  return (await response.json()) as T;
+}
 
 export const apiClient = {
-  // Análise de imagens
-  async analyzeImages(
+  analyzeImages(
     files: File[],
     machineId?: string,
-    notes?: string
+    notes?: string,
   ): Promise<AnalysisResponse> {
-    const formData = new FormData();
-
-    files.forEach((file) => {
-      formData.append("files", file);
+    const data = new FormData();
+    files.forEach((file) => data.append("files", file));
+    if (machineId) data.append("machine_id", machineId);
+    if (notes) data.append("notes", notes);
+    return request<AnalysisResponse>("/v1/analisar", {
+      method: "POST",
+      body: data,
     });
-
-    if (machineId) formData.append("machine_id", machineId);
-    if (notes) formData.append("notes", notes);
-
-    const response = await api.post<AnalysisResponse>(
-      "/v1/analisar",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
-
-    return response.data;
   },
 
-  // Verificação de saúde
-  async healthCheck(): Promise<HealthResponse> {
-    const response = await api.get<HealthResponse>("/health");
-    return response.data;
-  },
-
-  // Página inicial
-  async getHomePage(): Promise<string> {
-    const response = await api.get<string>("/");
-    return response.data;
+  healthCheck(): Promise<HealthResponse> {
+    return request<HealthResponse>("/health");
   },
 };
-
-export default apiClient;

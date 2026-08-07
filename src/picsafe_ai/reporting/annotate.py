@@ -1,121 +1,73 @@
-"""Anotação de imagens com bounding boxes das detecções."""
+"""Renderização de bounding boxes por imagem opaca."""
 
-import logging
-from pathlib import Path
+from typing import ClassVar, cast
 
 from PIL import Image, ImageDraw, ImageFont
 
 from picsafe_ai.api.schemas import Detection
 
-logger = logging.getLogger(__name__)
+
+class ImageAnnotationError(RuntimeError):
+    """Falha explícita ao produzir evidência anotada."""
 
 
 class ImageAnnotator:
-    """Classe para anotação de imagens com detecções."""
+    """Anota somente detecções pertencentes à imagem informada."""
 
-    # Cores para cada classe (RGB)
-    CLASS_COLORS = {
-        "emergency_stop": (255, 0, 0),  # Vermelho
-        "guard": (0, 255, 0),  # Verde
-        "exposed_moving_part": (255, 165, 0),  # Laranja
-        "danger_zone_opening": (255, 0, 255),  # Magenta
-        "safety_sign": (0, 0, 255),  # Azul
+    CLASS_COLORS: ClassVar[dict[str, tuple[int, int, int]]] = {
+        "emergency_stop": (220, 38, 38),
+        "guard": (22, 163, 74),
+        "exposed_moving_part": (234, 88, 12),
+        "danger_zone_opening": (192, 38, 211),
+        "safety_sign": (37, 99, 235),
     }
 
-    @staticmethod
+    @classmethod
     def annotate_image(
-        image_path: str, detections: list[Detection], output_path: str
-    ) -> str:
-        """
-        Anota imagem com bounding boxes das detecções.
-
-        Args:
-            image_path: Caminho da imagem original.
-            detections: Lista de detecções para anotar.
-            output_path: Caminho onde salvar imagem anotada.
-
-        Returns:
-            Caminho da imagem anotada.
-        """
+        cls,
+        image_path: str,
+        image_id: str,
+        detections: list[Detection],
+    ) -> Image.Image:
+        """Retorna cópia RGB anotada sem persistir paths por conta própria."""
         try:
-            # Abrir imagem
-            image = Image.open(image_path)
-            draw = ImageDraw.Draw(image)
+            with Image.open(image_path) as source:
+                image = source.convert("RGB")
+        except OSError as exc:
+            message = "Não foi possível abrir a imagem validada para anotação"
+            raise ImageAnnotationError(message) from exc
 
-            # Tentar carregar fonte, usar default se falhar
-            font: ImageFont.FreeTypeFont | ImageFont.ImageFont
-            try:
-                font = ImageFont.truetype("arial.ttf", 16)
-            except OSError:
-                font = ImageFont.load_default()
+        draw = ImageDraw.Draw(image)
+        font = ImageFont.load_default()
+        for detection in detections:
+            if detection.image_id == image_id:
+                cls._draw_detection(draw, detection, image.size, font)
+        return cast("Image.Image", image)
 
-            # Filtrar detecções para esta imagem
-            image_detections = [d for d in detections if d.image_path == image_path]
-
-            for detection in image_detections:
-                ImageAnnotator._draw_detection(draw, detection, image.size, font)
-
-            # Salvar imagem anotada
-            output_path_obj = Path(output_path)
-            output_path_obj.parent.mkdir(parents=True, exist_ok=True)
-            image.save(output_path_obj)
-
-            logger.info(f"Imagem anotada salva em: {output_path}")
-            return output_path
-
-        except Exception as e:
-            logger.exception(f"Erro ao anotar imagem {image_path}: {e}")
-            return image_path
-
-    @staticmethod
+    @classmethod
     def _draw_detection(
+        cls,
         draw: ImageDraw.ImageDraw,
         detection: Detection,
         image_size: tuple[int, int],
         font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
     ) -> None:
-        """
-        Desenha uma detecção na imagem.
-
-        Args:
-            draw: Objeto ImageDraw.
-            detection: Detecção a ser desenhada.
-            image_size: Tamanho da imagem (largura, altura).
-            font: Fonte para texto.
-        """
-        img_width, img_height = image_size
-
-        # Converter coordenadas normalizadas para pixels
+        width, height = image_size
         bbox = detection.bbox
-        x_min = int(bbox.x_min * img_width)
-        y_min = int(bbox.y_min * img_height)
-        x_max = int(bbox.x_max * img_width)
-        y_max = int(bbox.y_max * img_height)
-
-        # Cor da classe
-        color = ImageAnnotator.CLASS_COLORS.get(
-            detection.class_name.value, (128, 128, 128)
+        coordinates = (
+            int(bbox.x_min * width),
+            int(bbox.y_min * height),
+            int(bbox.x_max * width),
+            int(bbox.y_max * height),
         )
-
-        # Desenhar retângulo
-        draw.rectangle([x_min, y_min, x_max, y_max], outline=color, width=3)
-
-        # Preparar texto
-        confidence_pct = int(detection.confidence * 100)
-        label = f"{detection.class_name.value} ({confidence_pct}%)"
-
-        # Calcular tamanho do texto
-        try:
-            bbox_text = draw.textbbox((0, 0), label, font=font)
-            text_width = bbox_text[2] - bbox_text[0]
-            text_height = bbox_text[3] - bbox_text[1]
-        except AttributeError:
-            # Fallback para versões antigas do PIL
-            text_width, text_height = draw.textsize(label, font=font)  # type: ignore[attr-defined]
-
-        # Fundo do texto
-        text_bg = [x_min, y_min - text_height - 4, x_min + text_width + 4, y_min]
-        draw.rectangle(text_bg, fill=color)
-
-        # Texto
-        draw.text((x_min + 2, y_min - text_height - 2), label, fill="white", font=font)
+        color = cls.CLASS_COLORS[detection.class_name.value]
+        draw.rectangle(coordinates, outline=color, width=3)
+        label = f"{detection.class_name.value} ({detection.confidence:.2f})"
+        text_box = draw.textbbox((coordinates[0], coordinates[1]), label, font=font)
+        draw.rectangle(text_box, fill=color)
+        draw.text(
+            (coordinates[0], coordinates[1]),
+            label,
+            fill="white",
+            font=font,
+        )

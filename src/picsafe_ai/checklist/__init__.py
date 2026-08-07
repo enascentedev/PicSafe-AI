@@ -1,6 +1,6 @@
-"""Módulo de checklist e motor de regras NR-12."""
+"""Motor de regras conservador."""
 
-from .mapping import CRITICAL_CLASSES, RULE_DESCRIPTIONS
-from .rules import RulesEngine
+from picsafe_ai.checklist.mapping import CRITICAL_CLASSES, RULE_DESCRIPTIONS
+from picsafe_ai.checklist.rules import RulesEngine
 
-__all__ = ["RulesEngine", "CRITICAL_CLASSES", "RULE_DESCRIPTIONS"]
+__all__ = ["CRITICAL_CLASSES", "RULE_DESCRIPTIONS", "RulesEngine"]

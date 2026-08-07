@@ -1,13 +1,30 @@
-"""Utilitários diversos."""
+"""Utilitários de infraestrutura."""
 
-from .io import cleanup_old_files, ensure_directory, get_file_info, save_uploaded_file
-from .logging import get_logger, setup_logging
+from picsafe_ai.utils.io import (
+    PreparedImage,
+    UploadPolicy,
+    UploadValidationError,
+    analysis_workspace,
+    cleanup_expired_files,
+    prepare_uploads,
+    read_bytes,
+    remove_paths,
+    save_image,
+    write_text,
+)
+from picsafe_ai.utils.logging import get_logger, setup_logging
 
 __all__ = [
-    "cleanup_old_files",
-    "ensure_directory",
-    "get_file_info",
-    "save_uploaded_file",
+    "PreparedImage",
+    "UploadPolicy",
+    "UploadValidationError",
+    "analysis_workspace",
+    "cleanup_expired_files",
     "get_logger",
+    "prepare_uploads",
+    "read_bytes",
+    "remove_paths",
+    "save_image",
     "setup_logging",
+    "write_text",
 ]

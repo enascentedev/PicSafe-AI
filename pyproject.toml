@@ -1,120 +1,78 @@
 [project]
 name = "picsafe-ai"
 version = "0.1.0"
-description = "PoC de Triagem Visual de Segurança de Máquinas (NR-12)"
-authors = [
-    {name = "Equipe PicSafe AI", email = "picsafe@example.com"}
-]
+description = "PoC de pré-avaliação visual de segurança de máquinas"
+authors = [{name = "Equipe PicSafe AI"}]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "pydantic>=2.5.0",
-    "pydantic-settings>=2.0.0",
-    "python-multipart>=0.0.6",
-    "pillow>=10.1.0",
-    "opencv-python>=4.8.1.78",
-    "numpy>=1.26.0",
-    "jinja2>=3.1.2",
-    "python-dotenv>=1.0.0",
-    "structlog>=23.2.0",
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "httpx>=0.25.0",
+    "fastapi>=0.116,<1",
+    "jinja2>=3.1.6,<4",
+    "numpy>=2.0,<3",
+    "opencv-python-headless>=4.10,<5",
+    "pillow>=11.3,<13",
+    "pydantic>=2.11,<3",
+    "pydantic-settings>=2.10,<3",
+    "python-multipart>=0.0.20,<1",
+    "uvicorn[standard]>=0.35,<1",
+]
+
+[dependency-groups]
+dev = [
+    "black>=25.1,<27",
+    "httpx>=0.28,<1",
+    "mypy>=1.17,<2",
+    "pre-commit>=4.2,<5",
+    "pytest>=8.4,<10",
+    "pytest-asyncio>=1.1,<2",
+    "pytest-cov>=6.2,<8",
+    "ruff>=0.12,<1",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = [
-    "ruff>=0.1.0",
-    "black>=23.11.0",
-    "mypy>=1.7.0",
-    "pre-commit>=3.5.0",
-]
+[tool.hatch.build.targets.wheel]
+packages = ["src/picsafe_ai"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "FURB", "LOG", "RUF"]
-ignore = [
-    "S101",    # assert é esperado em testes
-    "S104",    # bind em 0.0.0.0 é intencional (container)
-    "COM812",  # conflita com o formatador
-    "ISC001",  # conflita com o formatador
-    "B008",    # padrão do FastAPI (Depends/File nos defaults)
-    "G004",    # f-string em log é o padrão adotado no projeto
-    "E501",    # comprimento de linha já é controlado pelo black
-    "TRY003",  # mensagens de exceção descritivas são preferidas aqui
-    "TRY300",
-    "TRY301",
-    "TRY400",
-    "TRY401",
-    "EM101",
-    "EM102",
-    "PTH123",  # open() tradicional é aceitável no projeto
-    "PLR2004", # valores mágicos em testes/comparações simples
-    "SLF001",
-    "PERF203",
-    "BLE001",  # captura ampla intencional nas bordas da API
-    "RUF012",
-    "RUF022",  # não reordenar __all__ à força, deixa na ordem lógica escolhida
-    "PLC0415",
-    "ARG001",
-    "ARG002",
-    "B904",
-    "DTZ005",  # timestamps locais sem tz são suficientes para esta PoC
-]
+select = ["E", "F", "I", "UP", "B", "BLE", "S", "SIM", "RUF", "T20", "G", "TID"]
+ignore = ["S101", "S104"]
 
 [tool.ruff.lint.per-file-ignores]
-# scripts/ são CLIs: print() é a saída do usuário, não debug esquecido.
-"scripts/*" = ["T201"]
+"src/picsafe_ai/reporting/report_html.py" = ["E501"]
 
 [tool.black]
 line-length = 88
-target-version = ['py310']
+target-version = ["py311"]
 
 [tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+python_version = "3.11"
+strict = true
+packages = ["picsafe_ai"]
+
+[[tool.mypy.overrides]]
+module = ["cv2.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "--strict-config --strict-markers --cov=picsafe_ai --cov-branch --cov-report=term-missing --cov-fail-under=80"
 
 [tool.coverage.run]
-source = ["src/picsafe_ai"]
-omit = ["*/tests/*", "*/test_*"]
+source = ["picsafe_ai"]
+branch = true
 
 [tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if 0:",
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if TYPE_CHECKING:",
     "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
+    '\.\.\.',
 ]

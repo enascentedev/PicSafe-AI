@@ -1,148 +1,62 @@
-"""Pós-processamento das detecções de visão computacional."""
+"""Pós-processamento isolado por imagem e classe."""
 
-import logging
+from collections import defaultdict
 
-from picsafe_ai.api.schemas import Detection, DetectionClass
-from picsafe_ai.config import settings
-
-logger = logging.getLogger(__name__)
+from picsafe_ai.api.schemas import Detection
 
 
 class PostProcessor:
-    """Classe para pós-processamento de detecções."""
+    """Aplica limiar e NMS sem cruzar imagens distintas."""
 
-    def __init__(self) -> None:
-        """Inicializa o pós-processador."""
-        self.nms_threshold = settings.nms_threshold
-        self.confidence_threshold = settings.confidence_threshold
+    def __init__(self, *, confidence_threshold: float, nms_threshold: float) -> None:
+        self.confidence_threshold = confidence_threshold
+        self.nms_threshold = nms_threshold
 
     def process_detections(self, detections: list[Detection]) -> list[Detection]:
-        """
-        Aplica pós-processamento às detecções.
+        """Filtra detecções e aplica NMS em grupos independentes."""
+        eligible = [
+            detection
+            for detection in detections
+            if detection.confidence >= self.confidence_threshold
+        ]
+        grouped: dict[tuple[str, str], list[Detection]] = defaultdict(list)
+        for detection in eligible:
+            key = (detection.image_id, detection.class_name.value)
+            grouped[key].append(detection)
 
-        Args:
-            detections: Lista de detecções brutas.
+        processed: list[Detection] = []
+        for group in grouped.values():
+            kept: list[Detection] = []
+            for detection in sorted(
+                group,
+                key=lambda item: item.confidence,
+                reverse=True,
+            ):
+                if all(
+                    self.calculate_iou(detection, current) <= self.nms_threshold
+                    for current in kept
+                ):
+                    kept.append(detection)
+            processed.extend(kept)
+        return processed
 
-        Returns:
-            Lista de detecções processadas.
-        """
-        if not detections:
-            return detections
-
-        # Aplicar Non-Maximum Suppression (NMS)
-        detections = self._apply_nms(detections)
-
-        # Filtrar por confiança
-        detections = self._filter_by_confidence(detections)
-
-        # Mesclar detecções similares
-        detections = self._merge_similar_detections(detections)
-
-        logger.info(
-            f"Pós-processamento aplicado: {len(detections)} detecções restantes"
-        )
-        return detections
-
-    def _apply_nms(self, detections: list[Detection]) -> list[Detection]:
-        """
-        Aplica Non-Maximum Suppression para remover detecções sobrepostas.
-
-        Args:
-            detections: Lista de detecções.
-
-        Returns:
-            Lista filtrada após NMS.
-        """
-        if len(detections) <= 1:
-            return detections
-
-        # Agrupar por classe
-        detections_by_class: dict[DetectionClass, list[Detection]] = {}
-        for detection in detections:
-            class_name = detection.class_name
-            if class_name not in detections_by_class:
-                detections_by_class[class_name] = []
-            detections_by_class[class_name].append(detection)
-
-        filtered_detections = []
-
-        for class_detections in detections_by_class.values():
-            # Ordenar por confiança (decrescente)
-            class_detections.sort(key=lambda x: x.confidence, reverse=True)
-
-            kept_detections: list[Detection] = []
-
-            for detection in class_detections:
-                should_keep = True
-
-                # Verificar overlap com detecções já mantidas
-                for kept in kept_detections:
-                    if self._calculate_iou(detection, kept) > self.nms_threshold:
-                        should_keep = False
-                        break
-
-                if should_keep:
-                    kept_detections.append(detection)
-
-            filtered_detections.extend(kept_detections)
-
-        return filtered_detections
-
-    def _filter_by_confidence(self, detections: list[Detection]) -> list[Detection]:
-        """
-        Filtra detecções por threshold de confiança.
-
-        Args:
-            detections: Lista de detecções.
-
-        Returns:
-            Lista filtrada por confiança.
-        """
-        return [d for d in detections if d.confidence >= self.confidence_threshold]
-
-    def _merge_similar_detections(self, detections: list[Detection]) -> list[Detection]:
-        """
-        Mescla detecções similares da mesma classe.
-
-        Args:
-            detections: Lista de detecções.
-
-        Returns:
-            Lista com detecções mescladas.
-        """
-        # Por simplicidade, manter como está por enquanto
-        # TODO: Implementar merge inteligente baseado em proximidade
-        return detections
-
-    def _calculate_iou(self, detection1: Detection, detection2: Detection) -> float:
-        """
-        Calcula Intersection over Union (IoU) entre duas detecções.
-
-        Args:
-            detection1: Primeira detecção.
-            detection2: Segunda detecção.
-
-        Returns:
-            Valor do IoU (0-1).
-        """
-        bbox1 = detection1.bbox
-        bbox2 = detection2.bbox
-
-        # Calcular coordenadas da interseção
-        x_left = max(bbox1.x_min, bbox2.x_min)
-        y_top = max(bbox1.y_min, bbox2.y_min)
-        x_right = min(bbox1.x_max, bbox2.x_max)
-        y_bottom = min(bbox1.y_max, bbox2.y_max)
-
+    @staticmethod
+    def calculate_iou(first: Detection, second: Detection) -> float:
+        """Calcula intersection over union entre duas detecções."""
+        if first.image_id != second.image_id:
+            return 0.0
+        x_left = max(first.bbox.x_min, second.bbox.x_min)
+        y_top = max(first.bbox.y_min, second.bbox.y_min)
+        x_right = min(first.bbox.x_max, second.bbox.x_max)
+        y_bottom = min(first.bbox.y_max, second.bbox.y_max)
         if x_right <= x_left or y_bottom <= y_top:
             return 0.0
-
-        intersection_area = (x_right - x_left) * (y_bottom - y_top)
-
-        # Calcular áreas individuais
-        bbox1_area = (bbox1.x_max - bbox1.x_min) * (bbox1.y_max - bbox1.y_min)
-        bbox2_area = (bbox2.x_max - bbox2.x_min) * (bbox2.y_max - bbox2.y_min)
-
-        union_area = bbox1_area + bbox2_area - intersection_area
-
-        return intersection_area / union_area if union_area > 0 else 0.0
+        intersection = (x_right - x_left) * (y_bottom - y_top)
+        first_area = (first.bbox.x_max - first.bbox.x_min) * (
+            first.bbox.y_max - first.bbox.y_min
+        )
+        second_area = (second.bbox.x_max - second.bbox.x_min) * (
+            second.bbox.y_max - second.bbox.y_min
+        )
+        union = first_area + second_area - intersection
+        return intersection / union if union > 0 else 0.0
