@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
 import { Button } from "../components/ui/button";
@@ -12,7 +12,7 @@ import {
 import { useToast } from "../hooks/use-toast";
 import { apiClient } from "../utils/api";
 import type { FileWithPreview, AnalysisResponse } from "../types/api";
-import { X, Upload, Image as ImageIcon } from "lucide-react";
+import { X, Upload } from "lucide-react";
 
 function AnalysisPage() {
   const navigate = useNavigate();
@@ -21,6 +21,8 @@ function AnalysisPage() {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [machineId, setMachineId] = useState("");
   const [notes, setNotes] = useState("");
+  const filesRef = useRef(files);
+  filesRef.current = files;
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -124,11 +126,14 @@ function AnalysisPage() {
       });
 
       navigate("/relatorio");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erro ao analisar imagens:", error);
       toast({
         title: "Erro na análise",
-        description: error.message || "Ocorreu um erro ao analisar as imagens.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Ocorreu um erro ao analisar as imagens.",
         variant: "destructive",
       });
     } finally {
@@ -139,7 +144,7 @@ function AnalysisPage() {
   // Limpar previews ao desmontar
   useEffect(() => {
     return () => {
-      files.forEach((file) => {
+      filesRef.current.forEach((file) => {
         if (file.preview) {
           URL.revokeObjectURL(file.preview);
         }
