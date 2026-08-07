@@ -1,15 +1,22 @@
 """Motor de regras determinísticas para triagem NR-12."""
 
-from typing import List, Optional
-
-from ..api.schemas import ChecklistItem, ChecklistStatus, Detection, DetectionClass, PendingPhoto
+from picsafe_ai.api.schemas import (
+    BoundingBox,
+    ChecklistItem,
+    ChecklistStatus,
+    Detection,
+    DetectionClass,
+    PendingPhoto,
+)
 
 
 class RulesEngine:
     """Motor de regras para avaliação de conformidade NR-12 baseada em detecções."""
 
     @staticmethod
-    def apply_rules(detections: List[Detection]) -> tuple[List[ChecklistItem], List[PendingPhoto]]:
+    def apply_rules(
+        detections: list[Detection],
+    ) -> tuple[list[ChecklistItem], list[PendingPhoto]]:
         """
         Aplica regras determinísticas às detecções encontradas.
 
@@ -32,18 +39,22 @@ class RulesEngine:
         checklist_items.append(RulesEngine._rule_r003_safety_signs(detections))
 
         # Adicionar pendências baseadas nas regras aplicadas
-        pending_photos.extend(RulesEngine._generate_pending_photos(checklist_items, detections))
+        pending_photos.extend(
+            RulesEngine._generate_pending_photos(checklist_items, detections)
+        )
 
         return checklist_items, pending_photos
 
     @staticmethod
-    def _rule_r001_exposed_moving_part(detections: List[Detection]) -> ChecklistItem:
+    def _rule_r001_exposed_moving_part(detections: list[Detection]) -> ChecklistItem:
         """
         R-001: Parte móvel exposta presente e proteção ausente na região.
 
         Esta regra verifica se há partes móveis expostas sem proteção adequada.
         """
-        exposed_parts = [d for d in detections if d.class_name == DetectionClass.EXPOSED_MOVING_PART]
+        exposed_parts = [
+            d for d in detections if d.class_name == DetectionClass.EXPOSED_MOVING_PART
+        ]
         guards = [d for d in detections if d.class_name == DetectionClass.GUARD]
 
         if not exposed_parts:
@@ -53,7 +64,7 @@ class RulesEngine:
                 description="Verificar se há partes móveis expostas sem proteção",
                 status=ChecklistStatus.DESCONHECIDO,
                 evidence=None,
-                notes="Nenhuma parte móvel exposta detectada nas imagens fornecidas"
+                notes="Nenhuma parte móvel exposta detectada nas imagens fornecidas",
             )
 
         # Verificar se cada parte exposta tem proteção adequada
@@ -74,25 +85,26 @@ class RulesEngine:
                 description="Verificar se há partes móveis expostas sem proteção",
                 status=ChecklistStatus.ATENCAO,
                 evidence=evidence,
-                notes="Encontradas partes móveis expostas sem proteção adequada"
+                notes="Encontradas partes móveis expostas sem proteção adequada",
             )
-        else:
-            return ChecklistItem(
-                rule_id="R-001",
-                description="Verificar se há partes móveis expostas sem proteção",
-                status=ChecklistStatus.OK,
-                evidence="Todas as partes móveis expostas possuem proteção adequada",
-                notes=None
-            )
+        return ChecklistItem(
+            rule_id="R-001",
+            description="Verificar se há partes móveis expostas sem proteção",
+            status=ChecklistStatus.OK,
+            evidence="Todas as partes móveis expostas possuem proteção adequada",
+            notes=None,
+        )
 
     @staticmethod
-    def _rule_r002_emergency_stop(detections: List[Detection]) -> ChecklistItem:
+    def _rule_r002_emergency_stop(detections: list[Detection]) -> ChecklistItem:
         """
         R-002: Botão/cabo de emergência não evidenciado em nenhuma imagem.
 
         Esta regra verifica se há botão de emergência visível nas imagens.
         """
-        emergency_stops = [d for d in detections if d.class_name == DetectionClass.EMERGENCY_STOP]
+        emergency_stops = [
+            d for d in detections if d.class_name == DetectionClass.EMERGENCY_STOP
+        ]
 
         if emergency_stops:
             evidence = f"Botão(ões) de emergência detectado(s) em {len(emergency_stops)} local(is)"
@@ -101,49 +113,50 @@ class RulesEngine:
                 description="Verificar presença de botão/cabo de emergência",
                 status=ChecklistStatus.OK,
                 evidence=evidence,
-                notes=None
+                notes=None,
             )
-        else:
-            return ChecklistItem(
-                rule_id="R-002",
-                description="Verificar presença de botão/cabo de emergência",
-                status=ChecklistStatus.DESCONHECIDO,
-                evidence=None,
-                notes="Botão de emergência não detectado - necessário verificar posto de operação"
-            )
+        return ChecklistItem(
+            rule_id="R-002",
+            description="Verificar presença de botão/cabo de emergência",
+            status=ChecklistStatus.DESCONHECIDO,
+            evidence=None,
+            notes="Botão de emergência não detectado - necessário verificar posto de operação",
+        )
 
     @staticmethod
-    def _rule_r003_safety_signs(detections: List[Detection]) -> ChecklistItem:
+    def _rule_r003_safety_signs(detections: list[Detection]) -> ChecklistItem:
         """
         R-003: Verificar presença de sinalização de segurança.
 
         Esta regra verifica se há sinalização de segurança adequada.
         """
-        safety_signs = [d for d in detections if d.class_name == DetectionClass.SAFETY_SIGN]
+        safety_signs = [
+            d for d in detections if d.class_name == DetectionClass.SAFETY_SIGN
+        ]
 
         if safety_signs:
-            evidence = f"Sinal(ais) de segurança detectado(s) em {len(safety_signs)} local(is)"
+            evidence = (
+                f"Sinal(ais) de segurança detectado(s) em {len(safety_signs)} local(is)"
+            )
             return ChecklistItem(
                 rule_id="R-003",
                 description="Verificar presença de sinalização de segurança",
                 status=ChecklistStatus.OK,
                 evidence=evidence,
-                notes=None
+                notes=None,
             )
-        else:
-            return ChecklistItem(
-                rule_id="R-003",
-                description="Verificar presença de sinalização de segurança",
-                status=ChecklistStatus.DESCONHECIDO,
-                evidence=None,
-                notes="Sinalização de segurança não detectada nas imagens fornecidas"
-            )
+        return ChecklistItem(
+            rule_id="R-003",
+            description="Verificar presença de sinalização de segurança",
+            status=ChecklistStatus.DESCONHECIDO,
+            evidence=None,
+            notes="Sinalização de segurança não detectada nas imagens fornecidas",
+        )
 
     @staticmethod
     def _generate_pending_photos(
-        checklist_items: List[ChecklistItem],
-        detections: List[Detection]
-    ) -> List[PendingPhoto]:
+        checklist_items: list[ChecklistItem], detections: list[Detection]
+    ) -> list[PendingPhoto]:
         """
         Gera lista de fotos pendentes baseada nos itens do checklist.
 
@@ -157,24 +170,36 @@ class RulesEngine:
         pending_photos = []
 
         # Se botão de emergência não foi detectado, pedir foto do posto de operação
-        r002_item = next((item for item in checklist_items if item.rule_id == "R-002"), None)
+        r002_item = next(
+            (item for item in checklist_items if item.rule_id == "R-002"), None
+        )
         if r002_item and r002_item.status == ChecklistStatus.DESCONHECIDO:
-            pending_photos.append(PendingPhoto(
-                description="Foto do posto de operação/painel de controle",
-                reason="Botão de emergência não detectado - necessário verificar localização no posto de operação"
-            ))
+            pending_photos.append(
+                PendingPhoto(
+                    description="Foto do posto de operação/painel de controle",
+                    reason="Botão de emergência não detectado - necessário verificar localização no posto de operação",
+                )
+            )
 
         # Se sinalização não foi detectada, pedir foto dos pontos de acesso
-        r003_item = next((item for item in checklist_items if item.rule_id == "R-003"), None)
+        r003_item = next(
+            (item for item in checklist_items if item.rule_id == "R-003"), None
+        )
         if r003_item and r003_item.status == ChecklistStatus.DESCONHECIDO:
-            pending_photos.append(PendingPhoto(
-                description="Foto dos pontos de acesso à zona perigosa",
-                reason="Sinalização de segurança não detectada - necessário verificar sinalização nos pontos de acesso"
-            ))
+            pending_photos.append(
+                PendingPhoto(
+                    description="Foto dos pontos de acesso à zona perigosa",
+                    reason="Sinalização de segurança não detectada - necessário verificar sinalização nos pontos de acesso",
+                )
+            )
 
         # Verificar se há aberturas perigosas sem sinalização adequada
-        danger_zones = [d for d in detections if d.class_name == DetectionClass.DANGER_ZONE_OPENING]
-        safety_signs = [d for d in detections if d.class_name == DetectionClass.SAFETY_SIGN]
+        danger_zones = [
+            d for d in detections if d.class_name == DetectionClass.DANGER_ZONE_OPENING
+        ]
+        safety_signs = [
+            d for d in detections if d.class_name == DetectionClass.SAFETY_SIGN
+        ]
 
         for danger_zone in danger_zones:
             has_nearby_sign = any(
@@ -182,15 +207,19 @@ class RulesEngine:
                 for sign in safety_signs
             )
             if not has_nearby_sign:
-                pending_photos.append(PendingPhoto(
-                    description=f"Foto em close da abertura perigosa localizada em {danger_zone.image_path}",
-                    reason="Abertura perigosa detectada sem sinalização próxima - necessário verificar sinalização específica"
-                ))
+                pending_photos.append(
+                    PendingPhoto(
+                        description=f"Foto em close da abertura perigosa localizada em {danger_zone.image_path}",
+                        reason="Abertura perigosa detectada sem sinalização próxima - necessário verificar sinalização específica",
+                    )
+                )
 
         return pending_photos
 
     @staticmethod
-    def _bboxes_overlap(bbox1: 'BoundingBox', bbox2: 'BoundingBox', threshold: float = 0.0) -> bool:
+    def _bboxes_overlap(
+        bbox1: "BoundingBox", bbox2: "BoundingBox", threshold: float = 0.0
+    ) -> bool:
         """
         Verifica se dois bounding boxes se sobrepõem.
 

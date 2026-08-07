@@ -2,12 +2,10 @@
 
 import logging
 from pathlib import Path
-from typing import List
 
 from PIL import Image, ImageDraw, ImageFont
 
-from ..api.schemas import Detection
-from ..config import settings
+from picsafe_ai.api.schemas import Detection
 
 logger = logging.getLogger(__name__)
 
@@ -17,18 +15,16 @@ class ImageAnnotator:
 
     # Cores para cada classe (RGB)
     CLASS_COLORS = {
-        "emergency_stop": (255, 0, 0),      # Vermelho
-        "guard": (0, 255, 0),               # Verde
+        "emergency_stop": (255, 0, 0),  # Vermelho
+        "guard": (0, 255, 0),  # Verde
         "exposed_moving_part": (255, 165, 0),  # Laranja
-        "danger_zone_opening": (255, 0, 255),   # Magenta
-        "safety_sign": (0, 0, 255),         # Azul
+        "danger_zone_opening": (255, 0, 255),  # Magenta
+        "safety_sign": (0, 0, 255),  # Azul
     }
 
     @staticmethod
     def annotate_image(
-        image_path: str,
-        detections: List[Detection],
-        output_path: str
+        image_path: str, detections: list[Detection], output_path: str
     ) -> str:
         """
         Anota imagem com bounding boxes das detecções.
@@ -47,6 +43,7 @@ class ImageAnnotator:
             draw = ImageDraw.Draw(image)
 
             # Tentar carregar fonte, usar default se falhar
+            font: ImageFont.FreeTypeFont | ImageFont.ImageFont
             try:
                 font = ImageFont.truetype("arial.ttf", 16)
             except OSError:
@@ -67,7 +64,7 @@ class ImageAnnotator:
             return output_path
 
         except Exception as e:
-            logger.error(f"Erro ao anotar imagem {image_path}: {e}")
+            logger.exception(f"Erro ao anotar imagem {image_path}: {e}")
             return image_path
 
     @staticmethod
@@ -75,7 +72,7 @@ class ImageAnnotator:
         draw: ImageDraw.ImageDraw,
         detection: Detection,
         image_size: tuple[int, int],
-        font: ImageFont.FreeTypeFont
+        font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
     ) -> None:
         """
         Desenha uma detecção na imagem.
@@ -96,7 +93,9 @@ class ImageAnnotator:
         y_max = int(bbox.y_max * img_height)
 
         # Cor da classe
-        color = ImageAnnotator.CLASS_COLORS.get(detection.class_name.value, (128, 128, 128))
+        color = ImageAnnotator.CLASS_COLORS.get(
+            detection.class_name.value, (128, 128, 128)
+        )
 
         # Desenhar retângulo
         draw.rectangle([x_min, y_min, x_max, y_max], outline=color, width=3)
@@ -112,7 +111,7 @@ class ImageAnnotator:
             text_height = bbox_text[3] - bbox_text[1]
         except AttributeError:
             # Fallback para versões antigas do PIL
-            text_width, text_height = draw.textsize(label, font=font)
+            text_width, text_height = draw.textsize(label, font=font)  # type: ignore[attr-defined]
 
         # Fundo do texto
         text_bg = [x_min, y_min - text_height - 4, x_min + text_width + 4, y_min]

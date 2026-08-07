@@ -1,9 +1,5 @@
 import axios from "axios";
-import type {
-  AnalysisRequest,
-  AnalysisResponse,
-  HealthResponse,
-} from "../types/api";
+import type { AnalysisResponse, HealthResponse } from "../types/api";
 
 // Configuração da API
 // Em desenvolvimento, usa o proxy do Vite (/api)

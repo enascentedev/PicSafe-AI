@@ -2,12 +2,14 @@
 
 import logging
 from datetime import datetime
-from typing import List
 
 from jinja2 import Template
 
-from ..api.schemas import AnalysisResponse, ChecklistItem, ChecklistStatus, Detection, PendingPhoto
-from ..config import settings
+from picsafe_ai.api.schemas import (
+    AnalysisResponse,
+    ChecklistItem,
+    ChecklistStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +33,18 @@ class HTMLReportGenerator:
         # Preparar dados para o template
         context = {
             "machine_id": response.machine_id or "Não informado",
-            "timestamp": HTMLReportGenerator._format_timestamp(response.analysis_timestamp),
+            "timestamp": HTMLReportGenerator._format_timestamp(
+                response.analysis_timestamp
+            ),
             "model_version": response.model_version,
             "confidence_threshold": f"{response.confidence_threshold:.2f}",
             "processing_time": f"{response.processing_time_seconds:.2f}",
             "detections_count": len(response.detections),
             "checklist_items": response.checklist,
             "pending_photos": response.pending_photos,
-            "checklist_stats": HTMLReportGenerator._calculate_checklist_stats(response.checklist),
+            "checklist_stats": HTMLReportGenerator._calculate_checklist_stats(
+                response.checklist
+            ),
             "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
         }
 
@@ -47,7 +53,7 @@ class HTMLReportGenerator:
         return html_content
 
     @staticmethod
-    def _calculate_checklist_stats(checklist: List[ChecklistItem]) -> dict:
+    def _calculate_checklist_stats(checklist: list[ChecklistItem]) -> dict:
         """
         Calcula estatísticas do checklist.
 
@@ -86,7 +92,7 @@ class HTMLReportGenerator:
             Timestamp formatado para PT-BR.
         """
         try:
-            dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
             return dt.strftime("%d/%m/%Y %H:%M:%S")
         except Exception:
             return timestamp_str

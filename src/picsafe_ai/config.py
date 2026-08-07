@@ -1,10 +1,7 @@
 """Configurações da aplicação PicSafe AI."""
 
-import os
 from pathlib import Path
-from typing import Optional
 
-from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -34,6 +31,7 @@ class Settings(BaseSettings):
 
     class Config:
         """Configuração do Pydantic."""
+
         # config.env é o arquivo documentado no README e no compose; .env é
         # aceito como override local. O último da sequência tem precedência.
         env_file = ("config.env", ".env")

@@ -32,10 +32,11 @@ def build_report_from_json(json_file: str, output_file: str) -> None:
     """
     json_path = Path(json_file)
     if not json_path.exists():
-        raise FileNotFoundError(f"Arquivo JSON não encontrado: {json_path}")
+        msg = f"Arquivo JSON não encontrado: {json_path}"
+        raise FileNotFoundError(msg)
 
     # Carregar dados JSON
-    with open(json_path, "r", encoding="utf-8") as f:
+    with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
 
     logger.info(f"Dados carregados de: {json_path}")
@@ -63,7 +64,8 @@ def build_report_from_json(json_file: str, output_file: str) -> None:
             base_response.pending_photos = combined_pending
             base_response.machine_id = f"combined_{len(data['batches'])}_batches"
         else:
-            raise ValueError("Nenhum batch encontrado no arquivo JSON")
+            msg = "Nenhum batch encontrado no arquivo JSON"
+            raise ValueError(msg)
 
     else:
         # Análise única
@@ -81,7 +83,9 @@ def build_report_from_json(json_file: str, output_file: str) -> None:
         f.write(base_response.report_html)
 
     logger.info(f"Relatório HTML salvo em: {output_path}")
-    logger.info(f"Resumo: {len(base_response.detections)} detecções, {len(base_response.checklist)} itens no checklist")
+    logger.info(
+        f"Resumo: {len(base_response.detections)} detecções, {len(base_response.checklist)} itens no checklist"
+    )
 
 
 def main():
@@ -92,14 +96,9 @@ def main():
         "--output",
         "-o",
         default="report.html",
-        help="Arquivo HTML de saída (padrão: report.html)"
+        help="Arquivo HTML de saída (padrão: report.html)",
     )
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Log detalhado"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Log detalhado")
 
     args = parser.parse_args()
 
@@ -109,10 +108,11 @@ def main():
 
     try:
         build_report_from_json(args.json_file, args.output)
-        print("✅ Relatório gerado com sucesso!"        return 0
+        print("✅ Relatório gerado com sucesso!")
+        return 0
 
     except Exception as e:
-        logger.error(f"Erro ao gerar relatório: {e}")
+        logger.exception(f"Erro ao gerar relatório: {e}")
         return 1
 
 

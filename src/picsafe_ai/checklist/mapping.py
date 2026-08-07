@@ -1,8 +1,6 @@
 """Mapeamento e constantes para o motor de regras."""
 
-from typing import Dict, List
-
-from ..api.schemas import DetectionClass
+from picsafe_ai.api.schemas import DetectionClass
 
 # Mapeamento de classes críticas para regras específicas
 CRITICAL_CLASSES = [
@@ -12,7 +10,7 @@ CRITICAL_CLASSES = [
 ]
 
 # Thresholds de confiança por classe (mais baixos para classes críticas)
-CONFIDENCE_THRESHOLDS: Dict[DetectionClass, float] = {
+CONFIDENCE_THRESHOLDS: dict[DetectionClass, float] = {
     DetectionClass.EMERGENCY_STOP: 0.6,  # Mais rigoroso
     DetectionClass.GUARD: 0.5,
     DetectionClass.EXPOSED_MOVING_PART: 0.5,

@@ -1,13 +1,10 @@
 """Testes para o motor de regras NR-12."""
 
-import pytest
-
 from picsafe_ai.api.schemas import (
     BoundingBox,
     ChecklistStatus,
     Detection,
     DetectionClass,
-    PendingPhoto,
 )
 from picsafe_ai.checklist.rules import RulesEngine
 
@@ -22,21 +19,21 @@ class TestRulesEngine:
                 class_name=DetectionClass.EXPOSED_MOVING_PART,
                 confidence=0.8,
                 bbox=BoundingBox(x_min=0.2, y_min=0.3, x_max=0.4, y_max=0.5),
-                image_path="test.jpg"
+                image_path="test.jpg",
             ),
             Detection(
                 class_name=DetectionClass.GUARD,
                 confidence=0.9,
                 bbox=BoundingBox(x_min=0.15, y_min=0.25, x_max=0.45, y_max=0.55),
-                image_path="test.jpg"
-            )
+                image_path="test.jpg",
+            ),
         ]
 
         checklist, _ = RulesEngine.apply_rules(detections)
 
         r001_item = next(item for item in checklist if item.rule_id == "R-001")
         assert r001_item.status == ChecklistStatus.OK
-        assert "protegidas" in r001_item.evidence.lower()
+        assert "proteção adequada" in r001_item.evidence.lower()
 
     def test_rule_r001_exposed_part_without_guard(self):
         """Testa R-001: parte exposta SEM proteção."""
@@ -45,7 +42,7 @@ class TestRulesEngine:
                 class_name=DetectionClass.EXPOSED_MOVING_PART,
                 confidence=0.8,
                 bbox=BoundingBox(x_min=0.2, y_min=0.3, x_max=0.4, y_max=0.5),
-                image_path="test.jpg"
+                image_path="test.jpg",
             )
         ]
 
@@ -62,7 +59,7 @@ class TestRulesEngine:
                 class_name=DetectionClass.EMERGENCY_STOP,
                 confidence=0.85,
                 bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=0.3, y_max=0.3),
-                image_path="test.jpg"
+                image_path="test.jpg",
             )
         ]
 
@@ -79,7 +76,7 @@ class TestRulesEngine:
                 class_name=DetectionClass.GUARD,
                 confidence=0.9,
                 bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=0.3, y_max=0.3),
-                image_path="test.jpg"
+                image_path="test.jpg",
             )
         ]
 
@@ -89,7 +86,9 @@ class TestRulesEngine:
         assert r002_item.status == ChecklistStatus.DESCONHECIDO
 
         # Deve gerar pendência de foto do posto de operação
-        posto_pending = next((p for p in pending if "posto de operação" in p.description.lower()), None)
+        posto_pending = next(
+            (p for p in pending if "posto de operação" in p.description.lower()), None
+        )
         assert posto_pending is not None
         assert "botão de emergência" in posto_pending.reason.lower()
 
@@ -100,7 +99,7 @@ class TestRulesEngine:
                 class_name=DetectionClass.SAFETY_SIGN,
                 confidence=0.7,
                 bbox=BoundingBox(x_min=0.7, y_min=0.1, x_max=0.9, y_max=0.25),
-                image_path="test.jpg"
+                image_path="test.jpg",
             )
         ]
 
@@ -126,14 +125,14 @@ class TestRulesEngine:
                 class_name=DetectionClass.EXPOSED_MOVING_PART,
                 confidence=0.8,
                 bbox=BoundingBox(x_min=0.2, y_min=0.3, x_max=0.4, y_max=0.5),
-                image_path="test.jpg"
+                image_path="test.jpg",
             ),
             # Botão presente (R-002 = OK)
             Detection(
                 class_name=DetectionClass.EMERGENCY_STOP,
                 confidence=0.85,
                 bbox=BoundingBox(x_min=0.1, y_min=0.1, x_max=0.3, y_max=0.3),
-                image_path="test.jpg"
+                image_path="test.jpg",
             ),
         ]
 
